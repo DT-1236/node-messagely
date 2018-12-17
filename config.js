@@ -2,13 +2,12 @@
 
 // read .env files and make environmental variables
 
-require("dotenv").config();
+require('dotenv').config();
 
-const SECRET_KEY = process.env.SECRET_KEY || "secret";
-const BCRYPT_WORK_ROUNDS = 10;
-
+const SECRET_KEY = process.env.SECRET_KEY || 'secret';
+const BCRYPT_WORK_ROUNDS = 12;
 
 module.exports = {
   SECRET_KEY,
-  BCRYPT_WORK_ROUNDS,
+  BCRYPT_WORK_ROUNDS
 };
