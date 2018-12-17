@@ -2,6 +2,7 @@
 
 const db = require('../db');
 const bcrypt = require('bcrypt');
+const { BCRYPT_WORK_ROUNDS } = require('../config.js');
 
 /** User of the site. */
 
@@ -10,13 +11,26 @@ class User {
    *    {username, password, first_name, last_name, phone}
    */
 
+  static async checkUsernameExists(username) {
+    const dbResponse = await db.query(
+      `SELECT username from users where username = $1 `,
+      [username]
+    );
+    if (dbResponse.rows.length === 0) {
+      const err404 = new Error('not existing!, not found the username');
+      err404.status = 404;
+      throw err404;
+    }
+  }
+
   static async register({ username, password, first_name, last_name, phone }) {
     // Per DB DDL, passwords can be null
     try {
-      db.query(
-        `INSERT INTO users (username, password, first_name, last_name, phone)
-          VALUES ($1, $2, $3, $4, $5)`,
-        [username, password, first_name, last_name, phone]
+      const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_ROUNDS);
+      await db.query(
+        `INSERT INTO users (username, password, first_name, last_name, phone, join_at)
+          VALUES ($1, $2, $3, $4, $5, current_timestamp)`,
+        [username, hashedPassword, first_name, last_name, phone]
       );
       // Check to see if repeat usernames throw appropriately
       return username;
@@ -42,8 +56,9 @@ class User {
   static async updateLoginTimestamp(username) {
     // Further study: update using db timestamp
     try {
+      await this.checkUsernameExists(username);
       return await db.query(
-        `UPDATE FROM users SET last_login_at=current_timestamp WHERE username=$1`,
+        `UPDATE users SET last_login_at=current_timestamp WHERE username=$1`,
         [username]
       );
     } catch (err) {
@@ -59,7 +74,7 @@ class User {
       const dbResponse = await db.query(
         `SELECT username,
               first_name,
-              last_name,
+              last_name
       FROM users`
       );
       return dbResponse.rows;
@@ -78,6 +93,7 @@ class User {
 
   static async get(username) {
     try {
+      await this.checkUsernameExists(username);
       const dbResponse = await db.query(
         `SELECT username,
               first_name,
@@ -85,7 +101,7 @@ class User {
               phone,
               join_at,
               last_login_at
-      FROM users WHERE usernam=$1`,
+      FROM users WHERE username=$1`,
         [username]
       );
       return dbResponse.rows[0];
@@ -104,6 +120,7 @@ class User {
 
   static async messagesFrom(username) {
     try {
+      await this.checkUsernameExists(username);
       const dbResponse = await db.query(
         `SELECT m.id, 
                 m.body,
@@ -143,7 +160,7 @@ class User {
         `SELECT m.id,
                 m.body,
                 m.sent_at,
-                m.read_at
+                m.read_at,
                 u.username,
                 u.first_name,
                 u.last_name,
@@ -165,5 +182,4 @@ class User {
     }
   }
 }
-
 module.exports = User;
