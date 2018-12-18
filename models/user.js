@@ -74,8 +74,17 @@ class User {
       const user = new User(dbResponse.rows[0]);
       // Check to see if repeat usernames throw appropriately
       return user;
-    } catch (error) {
-      throw error;
+    } catch (err) {
+      if (
+        err.hasOwnProperty('error') &&
+        err.error.hasOwnProperty('constraint') &&
+        err.error.constraint === 'users_pkey'
+      ) {
+        const error = new Error('username must be unique');
+        error.status = 409; //409 - Conflict
+        throw error;
+      }
+      throw err;
     }
   }
 
