@@ -39,16 +39,16 @@ router.post('/login', async function login(req, res, next) {
 
 router.post('/register', async function register(req, res, next) {
   try {
+    console.log('we are here', req.body);
     const { username, password, first_name, last_name, phone } = req.body;
-    const registerPromise = User.register(
+
+    await User.register({
       username,
       password,
       first_name,
       last_name,
       phone
-    );
-    const timestampPromise = User.updateLoginTimestamp(username);
-    await Promise.all([registerPromise, timestampPromise]);
+    });
     const token = jwt.sign({ username }, SECRET_KEY); //jwt is sync
     return res.json({ token });
   } catch (err) {

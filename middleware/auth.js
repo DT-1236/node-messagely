@@ -33,6 +33,12 @@ function ensureCorrectUser(req, res, next) {
   }
 }
 
+// function ensureMsgUser(req, res, next) {
+//   try {
+
+//   } catch {}
+// }
+
 function verify(request) {
   const token = request.body._token || request.query._token;
   return jwt.verify(token, SECRET_KEY);

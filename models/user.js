@@ -42,6 +42,7 @@ class User {
   /** Authenticate: is this username/password valid? Returns boolean. */
 
   static async authenticate(username, password) {
+    //try catch
     const dbResponse = await db.query(
       `SELECT username, password FROM users
       WHERE username = $1`,
