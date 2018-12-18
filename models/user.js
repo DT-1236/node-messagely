@@ -2,6 +2,7 @@
 
 const db = require('../db');
 const bcrypt = require('bcrypt');
+const Message = require('../models/message');
 const { BCRYPT_WORK_ROUNDS } = require('../config.js');
 
 /** User of the site. */
@@ -10,6 +11,44 @@ class User {
   /** register new user -- returns
    *    {username, password, first_name, last_name, phone}
    */
+  constructor({ username, password, first_name, last_name, phone, join_at }) {
+    this.username = username;
+    this.hashedPassword = password;
+    this.first_name = first_name;
+    this.last_name = last_name;
+    this.phone = phone;
+    this.join_at = join_at;
+    this._to = null;
+    this._from = null;
+  }
+
+  set to(value) {
+    Message.allTo(this.username).then(messages => {
+      this._to = messages;
+    });
+  }
+
+  get to() {
+    if (!this._to) {
+      this.to = undefined;
+      return 'In Progress';
+    }
+    return this._to;
+  }
+
+  set from(value) {
+    Message.allFrom(this.username).then(messages => {
+      this._from = messages;
+    });
+  }
+
+  get from() {
+    if (!this._from) {
+      this.from = undefined;
+      return 'In Progress';
+    }
+    return this._from;
+  }
 
   static async checkUsernameExists(username) {
     const dbResponse = await db.query(
@@ -27,13 +66,14 @@ class User {
     // Per DB DDL, passwords can be null
     try {
       const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_ROUNDS);
-      await db.query(
+      const dbResponse = await db.query(
         `INSERT INTO users (username, password, first_name, last_name, phone, join_at)
-          VALUES ($1, $2, $3, $4, $5, current_timestamp)`,
+          VALUES ($1, $2, $3, $4, $5, current_timestamp) RETURNING *`,
         [username, hashedPassword, first_name, last_name, phone]
       );
+      const user = new User(dbResponse.rows[0]);
       // Check to see if repeat usernames throw appropriately
-      return username;
+      return user;
     } catch (error) {
       throw error;
     }
