@@ -35,12 +35,14 @@ app.use(function(req, res, next) {
 /** general error handler */
 
 app.use(function(err, req, res, next) {
-  res.status(err.status || 500);
-  console.error(err.stack);
+  let status = err.status || 500;
+  let message = err.message || 'Internal Server Error';
 
-  return res.json({
-    error: err,
-    message: err.message
+  return res.status(status).json({
+    error: {
+      message,
+      status
+    }
   });
 });
 

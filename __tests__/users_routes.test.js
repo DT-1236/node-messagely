@@ -5,14 +5,17 @@ const testApp = require('supertest')(app);
 const db = require('../db');
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
+const Message = require('../models/message');
 const jwt = require('jsonwebtoken');
 const { SECRET_KEY } = require('../config.js');
 
 let user;
 let auth = {};
+let user2;
+let msgFromUser2ToUser;
+let msgFromUserToUser2;
 
-beforeEach(async () => {
-  await db.query(`DELETE FROM users`);
+beforeAll(async () => {
   const hashedPassword = await bcrypt.hash('test', 1);
   user = await User.register({
     username: 'test',
@@ -21,19 +24,46 @@ beforeEach(async () => {
     last_name: 'test',
     phone: '8675309'
   });
+
   auth._token = jwt.sign({ username: user.username }, SECRET_KEY);
+
+  const hashedPassword2 = await bcrypt.hash('test2', 1);
+  user2 = await User.register({
+    username: 'test2',
+    password: hashedPassword2,
+    first_name: 'test2',
+    last_name: 'test2',
+    phone: '8675304'
+  });
+
+  msgFromUserToUser2 = await Message.create({
+    from_username: user.username,
+    to_username: user2.username,
+    body: 'testingUserToUser2'
+  });
+
+  msgFromUser2ToUser = await Message.create({
+    from_username: user2.username,
+    to_username: user.username,
+    body: 'testingUser2ToUser'
+  });
 });
 
 afterAll(async () => {
+  await db.query(`DELETE FROM messages`);
+  await db.query(`DELETE FROM users`);
+
   await db.end();
 });
+// afterEach(async () => {
+// });
 
 describe('GET /users/', async () => {
   test('it returns a list of users when logged in', async () => {
     const response = await testApp.get('/users/').send({ _token: auth._token });
     expect(response.status).toEqual(200);
     const users = response.body;
-    expect(users).toHaveLength(1);
+    expect(users).toHaveLength(2);
     const gotUser = users[0];
     expect(gotUser.username).toEqual(user.username);
     expect(gotUser.first_name).toEqual(user.first_name);
@@ -42,77 +72,96 @@ describe('GET /users/', async () => {
 
   test('it returns a 401 when logged out', async () => {
     const response = await testApp.get('/users/');
-    expect(response.error.status).toEqual(401);
-    // Error message construction probably needs to be adjusted
     expect(response.body.error.status).toEqual(401);
-    expect(response.body.message).toEqual('Unauthorized');
+    expect(response.body.error.message).toEqual('Unauthorized');
   });
 
   test('it returns a 401 with garbage token', async () => {
     const response = await testApp.get('/users/').send({ _token: 'crap' });
-    expect(response.error.status).toEqual(401);
-    expect(response.body.message).toEqual('Unauthorized');
+    expect(response.body.error.status).toEqual(401);
+    expect(response.body.error.message).toEqual('Unauthorized');
   });
 });
 
-//  For reference
+describe('GET /users/:username', async () => {
+  test('it gets the details of the user', async () => {
+    const response = await testApp
+      .get(`/users/${user.username}`)
+      .send({ _token: auth._token });
+    expect(response.status).toEqual(200);
+    const userDetailObj = response.body;
+    expect(userDetailObj).toHaveProperty('username', 'test');
+    expect(userDetailObj).toHaveProperty('first_name', 'test');
+    expect(userDetailObj).toHaveProperty('last_name', 'test');
+    expect(userDetailObj).toHaveProperty('phone', '8675309');
+    expect(userDetailObj).toHaveProperty('join_at');
+    expect(userDetailObj).toHaveProperty('last_login_at');
+  });
 
-// router.get('/', ensureLoggedIn, async function getAll(req, res, next) {
-//   return res.json(await User.all());
-// });
+  test('it returns a 401 when logged out', async () => {
+    const response = await testApp.get(`/users/${user.username}`);
+    expect(response.body.error.status).toEqual(401); // testing key in obj
+    expect(response.body.error.message).toEqual('Unauthorized');
+  });
 
-// /** GET /:username - get detail of users.
-//  *
-//  * => {user: {username, first_name, last_name, phone, join_at, last_login_at}}
-//  *
-//  **/
+  test('it returns a 401 with garbage token', async () => {
+    const response = await testApp
+      .get(`/users/${user.username}`)
+      .send({ _token: 'crap' });
+    expect(response.body.error.status).toEqual(401);
+    expect(response.body.error.message).toEqual('Unauthorized');
+  });
+});
 
-// router.get(
-//   '/:username',
-//   ensureLoggedIn,
-//   ensureCorrectUser,
-//   async function getDetails(req, res, next) {
-//     return res.json(await User.get(req.username));
-//   }
-// );
+describe('GET /users/:username/from', async () => {
+  test('it get messages from user', async () => {
+    let url = `/users/test/from`;
+    const response = await testApp.get(url).send({ _token: auth._token });
+    expect(response.status).toEqual(200);
 
-// /** GET /:username/to - get messages to user
-//  *
-//  * => {messages: [{id,
-//  *                 body,
-//  *                 sent_at,
-//  *                 read_at,
-//  *                 from_user: {username, first_name, last_name, phone}}, ...]}
-//  *
-//  **/
+    const fromUserMsg = response.body[0];
+    expect(fromUserMsg.to_user).toHaveProperty('username', user2.username);
+    expect(fromUserMsg).toHaveProperty('body', msgFromUserToUser2.body);
+    expect(fromUserMsg).toHaveProperty('sent_at');
+  });
 
-// router.get(
-//   '/:username/to',
-//   ensureLoggedIn,
-//   ensureCorrectUser,
-//   async function getToMsgs(req, res, next) {
-//     const getToMsgs = await User.messagesTo(req.username);
-//     return res.json(getToMsgs);
-//   }
-// );
+  test('it returns a 401 when logged out', async () => {
+    let url = `/users/test/from`;
+    const response = await testApp.get(url);
+    expect(response.body.error.status).toEqual(401); // testing key in obj
+    expect(response.body.error.message).toEqual('Unauthorized');
+  });
 
-// /** GET /:username/from - get messages from user
-//  *
-//  * => {messages: [{id,
-//  *                 body,
-//  *                 sent_at,
-//  *                 read_at,
-//  *                 to_user: {username, first_name, last_name, phone}}, ...]}
-//  *
-//  **/
-// router.get(
-//   '/:username/from',
-//   ensureLoggedIn,
-//   ensureCorrectUser,
-//   async function getFromMsgs(req, res, next) {
-//     const getFromMsgs = await User.messagesFrom(req.username);
-//     return res.json(getFromMsgs);
-//   }
-// );
+  test('it returns a 401 with garbage token', async () => {
+    let url = `/users/test/from`;
+    const response = await testApp.get(url).send({ _token: 'crap' });
+    expect(response.body.error.status).toEqual(401);
+    expect(response.body.error.message).toEqual('Unauthorized');
+  });
+});
 
-// module.exports = router;
+describe('GET /users/:username/to', async () => {
+  let url = `/users/test/to`;
+
+  test('it get messages to user', async () => {
+    const response = await testApp.get(url).send({ _token: auth._token });
+    expect(response.status).toEqual(200);
+
+    const toUserMsg = response.body[0];
+    expect(toUserMsg.from_user).toHaveProperty('username', user2.username);
+    expect(toUserMsg).toHaveProperty('body', msgFromUser2ToUser.body);
+    expect(toUserMsg).toHaveProperty('sent_at');
+  });
+
+  test('it returns a 401 when logged out', async () => {
+    const response = await testApp.get(url);
+    expect(response.body.error.status).toEqual(401); // testing key in obj
+    expect(response.body.error.message).toEqual('Unauthorized');
+  });
+
+  test('it returns a 401 with garbage token', async () => {
+    const response = await testApp.get(url).send({ _token: 'crap' });
+    expect(response.body.error.status).toEqual(401);
+    expect(response.body.error.message).toEqual('Unauthorized');
+  });
+});

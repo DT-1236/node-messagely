@@ -75,10 +75,11 @@ class User {
       // Check to see if repeat usernames throw appropriately
       return user;
     } catch (err) {
+      console.log(err);
       if (
         err.hasOwnProperty('error') &&
-        err.error.hasOwnProperty('constraint') &&
-        err.error.constraint === 'users_pkey'
+        err.hasOwnProperty('constraint') &&
+        err.constraint === 'users_pkey'
       ) {
         const error = new Error('username must be unique');
         error.status = 409; //409 - Conflict

@@ -27,9 +27,9 @@
     "url": "https://github.com/DT-1236/node-messagely/issues"
   },
   "homepage": "https://github.com/DT-1236/node-messagely#readme",
-  "description": "",
   "devDependencies": {
     "jest": "^23.6.0",
     "supertest": "^3.3.0"
-  }
+  },
+  "description": ""
 }
