@@ -75,15 +75,10 @@ class User {
       // Check to see if repeat usernames throw appropriately
       return user;
     } catch (err) {
-      console.log(err);
-      if (
-        err.hasOwnProperty('error') &&
-        err.hasOwnProperty('constraint') &&
-        err.constraint === 'users_pkey'
-      ) {
-        const error = new Error('username must be unique');
-        error.status = 409; //409 - Conflict
-        throw error;
+      if (err.hasOwnProperty('constraint') && err.constraint === 'users_pkey') {
+        const err409 = new Error('username must be unique');
+        err409.status = 409; //409 - Conflict
+        throw err409;
       }
       throw err;
     }
@@ -92,14 +87,13 @@ class User {
   /** Authenticate: is this username/password valid? Returns boolean. */
 
   static async authenticate(username, password) {
-    //try catch
     const dbResponse = await db.query(
       `SELECT username, password FROM users
       WHERE username = $1`,
       [username]
     );
     const user = dbResponse.rows[0];
-    return bcrypt.compare(password, user.password);
+    return await bcrypt.compare(password, user.password);
   }
 
   /** Update last_login_at for user */

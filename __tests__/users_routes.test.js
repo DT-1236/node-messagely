@@ -55,8 +55,6 @@ afterAll(async () => {
 
   await db.end();
 });
-// afterEach(async () => {
-// });
 
 describe('GET /users/', async () => {
   test('it returns a list of users when logged in', async () => {

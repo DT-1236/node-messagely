@@ -16,9 +16,9 @@ const User = require('../models/user');
 router.post('/login', async function login(req, res, next) {
   try {
     const { username, password } = req.body;
-    if (User.authenticate(username, password)) {
+    if (await User.authenticate(username, password)) {
       const token = jwt.sign({ username }, SECRET_KEY);
-      User.updateLoginTimestamp(username);
+      await User.updateLoginTimestamp(username);
       return res.json({ token });
     } else {
       const err = new Error('not valid username/pw');
@@ -39,7 +39,6 @@ router.post('/login', async function login(req, res, next) {
 
 router.post('/register', async function register(req, res, next) {
   try {
-    console.log('we are here', req.body);
     const { username, password, first_name, last_name, phone } = req.body;
 
     await User.register({
@@ -52,17 +51,6 @@ router.post('/register', async function register(req, res, next) {
     const token = jwt.sign({ username }, SECRET_KEY); //jwt is sync
     return res.json({ token });
   } catch (err) {
-    console.log(`WE'RE STILL CATCHING IN auth.js`, err);
-    // This is now probably redundant
-    if (
-      err.hasOwnProperty('error') &&
-      err.error.hasOwnProperty('routine') &&
-      err.error.routine === 'ExecConstraints'
-    ) {
-      const error = new Error('username must be unique');
-      error.status = 409; //409 - Conflict
-      return next(error);
-    }
     return next(err);
   }
 });

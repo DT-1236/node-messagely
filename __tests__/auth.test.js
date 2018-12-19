@@ -1,8 +1,8 @@
 process.env.NODE_ENV = 'test';
 
-const app = require('./app');
+const app = require('../app');
 const testApp = require('supertest')(app);
-const db = require('./db');
+const db = require('../db');
 
 let auth = {};
 
@@ -32,9 +32,8 @@ describe('POST /register', async () => {
       last_name: 'also_test2',
       phone: '1111112'
     });
-    // expect(response.statusCode).toEqual(200);
-    // expect(response.body).toHaveProperty('token');
-    // const token = response.body.token;
+    expect(response.status).toEqual(200);
+    expect(response.body).toHaveProperty('token');
   });
 
   test('it fails when registering an existing user', async () => {
@@ -45,8 +44,29 @@ describe('POST /register', async () => {
       last_name: 'also_test',
       phone: '1111111'
     });
-    // expect(response.statusCode).toEqual(409);
-    // INCOMPLETE
+    expect(response.status).toEqual(409);
+    expect(response.body.error.message).toEqual('username must be unique');
+  });
+});
+
+describe('POST /login', async () => {
+  test('it returns a token with good credentials', async () => {
+    const response = await testApp.post('/auth/login').send({
+      username: 'test',
+      password: 'test'
+    });
+    expect(response.status).toEqual(200);
+    expect(response.body).toHaveProperty('token');
+  });
+
+  test('it rejects bad credentials', async () => {
+    const response = await testApp.post('/auth/login').send({
+      username: 'test',
+      password: 'test2asdvadfb'
+    });
+    console.log(response.body);
+    expect(response.body.error.status).toEqual(401);
+    expect(response.body.error.message).toEqual('not valid username/pw');
   });
 });
 
@@ -64,32 +84,6 @@ describe('POST /register', async () => {
 //       err.status = 401;
 //       throw err;
 //     }
-//   } catch (err) {
-//     next(err);
-//   }
-// });
-
-// /** POST /register - register user: registers, logs in, and returns token.
-//  *
-//  * {username, password, first_name, last_name, phone} => {token}.
-//  *
-//  *  Make sure to update their last-login!
-//  */
-
-// router.post('/register', async function register(req, res, next) {
-//   try {
-//     console.log('we are here', req.body);
-//     const { username, password, first_name, last_name, phone } = req.body;
-
-//     await User.register({
-//       username,
-//       password,
-//       first_name,
-//       last_name,
-//       phone
-//     });
-//     const token = jwt.sign({ username }, SECRET_KEY); //jwt is sync
-//     return res.json({ token });
 //   } catch (err) {
 //     next(err);
 //   }
